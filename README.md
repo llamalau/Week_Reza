@@ -1,3 +1,5 @@
+![ABM animation](figs/abm.gif)
+
 ## BMI 500 — HW 2: Agent-Based Modeling of Pandemic Spread
 
 - **Name/Contact**: Your Name — your.email@example.com

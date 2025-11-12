@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
+from matplotlib import animation
 import numpy as np
 
 
@@ -90,6 +91,73 @@ def plot_curves(runs: list[dict[str, np.ndarray]], title: str, ax: plt.Axes | No
     ax.set_ylabel("agents")
     ax.legend()
     return ax
+
+
+def run_sim_trace(cfg: SimCfg) -> dict[str, np.ndarray]:
+    rng = np.random.default_rng(cfg.seed)
+    pos = rng.integers(0, cfg.grid, size=(cfg.agents, 2), endpoint=False, dtype=np.int64)
+    state = np.full(cfg.agents, S, dtype=np.int8)
+    state[rng.choice(cfg.agents, size=5, replace=False)] = I
+    moves = np.array([[1, 0], [-1, 0], [0, -1], [0, 1]], dtype=np.int64)
+    pos_hist = np.empty((cfg.steps + 1, cfg.agents, 2), dtype=np.int64)
+    state_hist = np.empty((cfg.steps + 1, cfg.agents), dtype=np.int8)
+    pos_hist[0] = pos
+    state_hist[0] = state
+
+    for t in range(1, cfg.steps + 1):
+        will_move = rng.random(cfg.agents) < cfg.move_prob
+        dir_idx = rng.integers(0, 4, size=cfg.agents)
+        step_vec = moves[dir_idx]
+        if cfg.avoidance > 0:
+            lin = pos[:, 0] * cfg.grid + pos[:, 1]
+            inf_cells = np.zeros(cfg.grid * cfg.grid, dtype=np.int32)
+            np.add.at(inf_cells, lin[state == I], 1)
+            inf_here = inf_cells[lin] > 0
+            need_avoid = (state == S) & will_move & inf_here & (rng.random(cfg.agents) < cfg.avoidance)
+            if need_avoid.any():
+                candidates = (pos[need_avoid, None, :] + moves[None, :, :]).clip(0, cfg.grid - 1)
+                cand_lin = candidates[:, :, 0] * cfg.grid + candidates[:, :, 1]
+                cand_score = inf_cells[cand_lin]
+                best = np.argmin(cand_score + 1e-6 * rng.random(cand_score.shape), axis=1)
+                step_vec[need_avoid] = moves[best]
+        pos[will_move] = (pos[will_move] + step_vec[will_move]).clip(0, cfg.grid - 1)
+
+        lin = pos[:, 0] * cfg.grid + pos[:, 1]
+        inf_count = np.bincount(lin[state == I], minlength=cfg.grid * cfg.grid)
+        inf_present = inf_count > 0
+        at_risk = (state == S) & inf_present[lin]
+        to_infect = at_risk & (rng.random(cfg.agents) < cfg.p)
+        state[to_infect] = I
+
+        rec_now = (state == I) & (rng.random(cfg.agents) < cfg.q)
+        state[rec_now] = R
+
+        pos_hist[t] = pos
+        state_hist[t] = state
+
+    return {"pos": pos_hist, "state": state_hist}
+
+
+def render_gif(cfg: SimCfg, out_path: str = "figs/abm.gif", fps: int = 10) -> None:
+    tr = run_sim_trace(cfg)
+    pos, st = tr["pos"], tr["state"]
+    fig, ax = plt.subplots(figsize=(5, 5))
+    ax.set_xlim(-0.5, cfg.grid - 0.5)
+    ax.set_ylim(-0.5, cfg.grid - 0.5)
+    ax.set_aspect("equal")
+    ax.invert_yaxis()
+    def colors(arr: np.ndarray) -> list[str]:
+        return np.where(arr == S, "#1f77b4", np.where(arr == I, "#d62728", "#2ca02c")).tolist()
+    scat = ax.scatter(pos[0, :, 1], pos[0, :, 0], c=colors(st[0]), s=14)
+    ax.set_title("step 0")
+    def update(frame: int):
+        scat.set_offsets(np.c_[pos[frame, :, 1], pos[frame, :, 0]])
+        scat.set_color(colors(st[frame]))
+        ax.set_title(f"step {frame}")
+        return scat,
+    ani = animation.FuncAnimation(fig, update, frames=pos.shape[0], interval=100, blit=True)
+    ani.save(out_path, writer=animation.PillowWriter(fps=fps))
+    plt.close(fig)
 
 
 def sweep(cfg: SimCfg, p_vals: list[float], q_vals: list[float], runs: int = 5, seeds: list[int] | None = None) -> list[tuple[float, float, int, int, int]]:
