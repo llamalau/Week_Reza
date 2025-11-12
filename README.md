@@ -2,13 +2,14 @@
 
 ## BMI 500 — HW 2: Agent-Based Modeling of Pandemic Spread
 
-- **Name/Contact**: Your Name — your.email@example.com
+- **Name/Contact**: Lauhitya Arvind — lreddy3@emory.edu
 - **Question answered**: HW 2 — Agent-Based Modeling of Pandemic Spread (A and B)
 - **Repository structure (enumerated by parts)**:
   - `HW2.py` — Part A (base model) and Part B (social distancing) implementation
   - `HW2_ABM.ipynb` — Reproducible notebook generating figures and tables
   - `figs/` — Saved plots (created when running the notebook)
   - `requirements.txt` — Minimal Python dependencies
+  - `AI_help.md` — Export of the AI assistance chat (usage disclosure)
 
 ## Objective
 Simulate pandemic spread with an ABM and study social distancing effects on infection and recovery.
@@ -77,7 +78,7 @@ Or open `HW2_ABM.ipynb` and run all cells to regenerate figures into `figs/`.
 Run `HW2_ABM.ipynb` to save figures in `figs/`.
 
 ### AI tool disclosure
-This repository was authored with assistance from an AI coding assistant for code edits and documentation organization.
+Disclaimer: Cursor AI assistant (GPT-5) was used to complete HW #2.A–B to scaffold and optimize the ABM code, fix bugs, create plots/GIFs, and organize the README/notebook; I selected parameters, validated outputs, interpreted results, and finalized the report. See `AI_help.md` for the full interaction export.
 
 ### References
 - Python docs and scientific stack (`numpy`, `matplotlib`).
