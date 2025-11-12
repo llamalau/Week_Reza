@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
 from matplotlib import animation
+from matplotlib.colors import ListedColormap
 import numpy as np
 
 
@@ -141,21 +142,35 @@ def run_sim_trace(cfg: SimCfg) -> dict[str, np.ndarray]:
 def render_gif(cfg: SimCfg, out_path: str = "figs/abm.gif", fps: int = 10) -> None:
     tr = run_sim_trace(cfg)
     pos, st = tr["pos"], tr["state"]
+    # Retro palette: 0=bg, 1=S, 2=I, 3=R
+    cmap = ListedColormap(["#000000", "#00e5ff", "#ff3864", "#00e436"])
     fig, ax = plt.subplots(figsize=(5, 5))
-    ax.set_xlim(-0.5, cfg.grid - 0.5)
-    ax.set_ylim(-0.5, cfg.grid - 0.5)
+    fig.patch.set_facecolor("#000000")
+    ax.set_facecolor("#000000")
     ax.set_aspect("equal")
-    ax.invert_yaxis()
-    def colors(arr: np.ndarray) -> list[str]:
-        return np.where(arr == S, "#1f77b4", np.where(arr == I, "#d62728", "#2ca02c")).tolist()
-    scat = ax.scatter(pos[0, :, 1], pos[0, :, 0], c=colors(st[0]), s=14)
-    ax.set_title("step 0")
+    ax.set_axis_off()
+
+    def frame_img(k: int) -> np.ndarray:
+        img = np.zeros((cfg.grid, cfg.grid), dtype=np.uint8)
+        yx = pos[k]
+        # susceptible
+        s_mask = st[k] == S
+        img[yx[s_mask, 0], yx[s_mask, 1]] = 1
+        # recovered
+        r_mask = st[k] == R
+        img[yx[r_mask, 0], yx[r_mask, 1]] = 3
+        # infected overrides
+        i_mask = st[k] == I
+        img[yx[i_mask, 0], yx[i_mask, 1]] = 2
+        return img
+
+    im = ax.imshow(frame_img(0), cmap=cmap, interpolation="nearest", vmin=0, vmax=3)
+
     def update(frame: int):
-        scat.set_offsets(np.c_[pos[frame, :, 1], pos[frame, :, 0]])
-        scat.set_color(colors(st[frame]))
-        ax.set_title(f"step {frame}")
-        return scat,
-    ani = animation.FuncAnimation(fig, update, frames=pos.shape[0], interval=100, blit=True)
+        im.set_data(frame_img(frame))
+        return (im,)
+
+    ani = animation.FuncAnimation(fig, update, frames=pos.shape[0], interval=1000 // max(fps, 1), blit=True)
     ani.save(out_path, writer=animation.PillowWriter(fps=fps))
     plt.close(fig)
 
